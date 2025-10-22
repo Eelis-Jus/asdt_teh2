@@ -141,7 +141,7 @@ int labyrintti[KORKEUS][LEVEYS] = {
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1},
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4,1,1},
 };
-
+pthread_barrier_t barrier;
 //apuja: voit testata ratkaisujasi myös alla olevalla yksinkertaisemmalla labyrintilla 
 //#define KORKEUS 7
 //#define LEVEYS 7
@@ -508,6 +508,22 @@ int aloitaRotta(){
     //OPISKELIJA: voisit muuttaa paluuarvon rakenteeksi jossa olisi liikkujen määrän lisäksi myös oikea reitti eli jäljelle jäänyt risteyspino, pystyt sitten käyttämään sitä prosesseissa tai säikeissä
     return liikkuCount;
 }
+
+void* worker(void* arg) {
+    int id = *((int*)arg);
+    cout << "Rotta " << id << " matkaan" << endl;
+    sleep(3);
+    aloitaRotta();
+    cout<<"rotta "<<id<<" ulkona labyrintista"<<"\n";
+    cout<<"\n";
+    sleep(1+id%2); // luodaan eri ajoituksia 
+    //jätin nuo alemmat koodinpätkät, että olisi helpompaa seurata ohjelman toteutusta
+    cout << "Thread " << id << " Odotetaan muita.." << endl; 
+    pthread_barrier_wait(&barrier);
+    cout << "Thread " << id << " Kaikki paikalla" << endl;
+    return nullptr;
+}
+
 //kaikkialla tarvittavat tunnisteet globaalilla alueella
 const char* SEM_NAME = "/mySem";
 int segment_id;
@@ -560,7 +576,19 @@ int main(){
         shmdt(memoryPointer);
         // Poistetaan jaettu muisti
         shmctl(segment_id, IPC_RMID, nullptr);  
+
     }else if(mode==2){
+        pthread_barrier_init(&barrier, nullptr, rottienmaara);
+        pthread_t threads[rottienmaara]; // tehdään id taulukko threadeille
+        int ids[rottienmaara];
+        for (int i = 0; i < rottienmaara; i++) {
+            ids[i] = i;
+            pthread_create(&threads[i], nullptr, worker, &ids[i]);
+        }
+        //odotetaan että kaikki säikeet valmiit
+        for (int i = 0; i < rottienmaara; i++) pthread_join(threads[i], nullptr);
+        pthread_barrier_destroy(&barrier);
+
     }else{
         cout<<"epäsopiva input, ohjelma sulkeutuu";
     }
