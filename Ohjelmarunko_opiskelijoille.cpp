@@ -143,6 +143,7 @@ int labyrintti[KORKEUS][LEVEYS] = {
 };
 
 
+
 //apuja: voit testata ratkaisujasi myös alla olevalla yksinkertaisemmalla labyrintilla 
 //#define KORKEUS 7
 //#define LEVEYS 7
@@ -509,12 +510,64 @@ int aloitaRotta(){
     //OPISKELIJA: voisit muuttaa paluuarvon rakenteeksi jossa olisi liikkujen määrän lisäksi myös oikea reitti eli jäljelle jäänyt risteyspino, pystyt sitten käyttämään sitä prosesseissa tai säikeissä
     return liikkuCount;
 }
+//kaikkialla tarvittavat tunnisteet globaalilla alueella
+const char* SEM_NAME = "/mySem";
+int segment_id;
+const int size_1 = 1024; // varataan kilotavu jaettua muistia
 
 //OPISKELIJA: nykyinen main on näin yksinkertainen, tästä pitää muokata se rinnakkaisuuden pohja
 int main(){
-    aloitaRotta();
-    //tämän tulee kertoa että kaikki rotat ovat päässeet ulos labyrintista
-    //viimeinen jäädytetty kuva sijaintikartasta olisi hyvä olla todistamassa sitä
-    std::cout << "Kaikki rotat ulkona!" << endl;
+    int mode; int rottienmaara;
+    cout<<"Ajetaanko prosesseja(1) vai säikeitä(2)? Paina haluttua numeroa."<<"\n";
+    cout<<": ";
+    cin>>mode;
+    cout<<"monatko rottaa laitetaan labyrinttiin? "<<"\n";
+    cout<<": ";
+    cin>>rottienmaara;
+    segment_id = shmget(IPC_PRIVATE, size_1, S_IRUSR | S_IWUSR);
+    //luodaaan jaettu muisti parentissa:
+    int* memoryPointer {nullptr}; // pointer jolla osoitetaan muistiin parentissa
+    memoryPointer = (int*) shmat (segment_id, NULL, 0); // annetaan jaettu muisti parentin käyttöön kiinnittämällä pointteri
+    int lukuParent = 0;
+    if (memoryPointer) *memoryPointer = lukuParent;  
+//    std::cout << "Vanhempi: montako rottaa on labyrintin läpi: " << *memoryPointer << std::endl;
+    // luodaan semafori käyttöä varten yleisellä alueella (parentissa)
+    sem_unlink(SEM_NAME);
+    sem_t* sem = sem_open(SEM_NAME, O_CREAT | O_EXCL, 0666, 1);
+    if (sem == SEM_FAILED) { perror("sem_open"); return 1; }
+
+    if(mode==1){
+        for(int i=1; i<=rottienmaara; i++){
+            pid_t pid = fork();
+            if(pid == -1){perror("fork"); return 1; }
+            if(pid==0){
+                int* childPtr {nullptr};
+                sleep(2);
+                childPtr = (int*) shmat (segment_id, NULL, 0); //pointer jolla osoitetaan muistiin lapsessa
+                aloitaRotta();   
+                if (childPtr) {
+                    sem_wait(sem); //jos semafori vapaa - voit edetä, muuten odota vapautumista
+                    *childPtr += 1; //turavalista päivittää
+                    sem_post(sem); //signaloi että semafori vapaa
+                    cout << "Lapsi: rotta " << *childPtr <<" ulkona"<<endl; //käytetään countteria laskemaan montako rottaa läpi labyrintistä
+                    cout<<"\n";
+                }
+            return 0;        
+            }
+        }
+    }else if(mode==2){
+        //tässä kohti ei ole vielä tehty säieitä
+    }else{
+        cout<<"epäsopiva input, ohjelma sulkeutuu";
+    }
+    for (int i = 0; i < rottienmaara; i++) wait(nullptr);
+    cout << *memoryPointer<<"rottaa ulkona"<<endl;
+    cout << "Kaikki rotat ulkona!" << endl;
+    sem_close(sem);
+    sem_unlink(SEM_NAME);
+    // Otetaan jaettu muisti pois jaosta
+    shmdt(memoryPointer);
+    // Poistetaan jaettu muisti
+    shmctl(segment_id, IPC_RMID, nullptr);
     return 0;
 }
