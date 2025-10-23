@@ -141,8 +141,6 @@ int labyrintti[KORKEUS][LEVEYS] = {
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1},
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4,1,1},
 };
-pthread_barrier_t barrier;
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 //apuja: voit testata ratkaisujasi myös alla olevalla yksinkertaisemmalla labyrintilla 
 //#define KORKEUS 7
@@ -533,7 +531,10 @@ void* worker(void* arg) {
 const char* SEM_NAME = "/mySem";
 int segment_id;
 const int size_1 = 1024; // varataan kilotavu jaettua muistia
-
+pthread_barrier_t barrier;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; //en luo erillistä read ja write mutexia koska ei ole tarve
+//en myöskään luo tuossa mainissa pthread_atttribute_init erikseen tai muuta vastaavaa, koska on vain yhdenlaisia säikeitä ja sille ei siksi ole tarvetta  
+//myöhemmissä tehtävissä voin alustaa attribuutiot, asettaa prioriteetit ja muun vastaavan jos sille on niissä tehtävissä tarve
 //OPISKELIJA: nykyinen main on näin yksinkertainen, tästä pitää muokata se rinnakkaisuuden pohja
 int main(){
     int mode; int rottienmaara;
@@ -593,6 +594,7 @@ int main(){
         //odotetaan että kaikki säikeet valmiit
         for (int i = 0; i < rottienmaara; i++) pthread_join(threads[i], nullptr);
         pthread_barrier_destroy(&barrier);
+        pthread_mutex_destroy(&mutex); 
 
     }else{
         cout<<"epäsopiva input, ohjelma sulkeutuu";
