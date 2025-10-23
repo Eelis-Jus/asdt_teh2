@@ -142,6 +142,8 @@ int labyrintti[KORKEUS][LEVEYS] = {
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4,1,1},
 };
 pthread_barrier_t barrier;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 //apuja: voit testata ratkaisujasi myös alla olevalla yksinkertaisemmalla labyrintilla 
 //#define KORKEUS 7
 //#define LEVEYS 7
@@ -209,7 +211,7 @@ struct Karttavirhe {
 //tämä on esittely aloitusalgoritmifunktiolle mitä siis kutsutaan oli kyseessä prosessi eli säietoteutus
 //tällä hetkellä palauttaa kyseisen rotan liikkujen määrän labyrintin selvittämiseksi
 //OPISKELIJA: yhtenä mielenkiintoisena haasteena voisi olla liikkujen määrän optimointi rottien yhteistyötä kehittämällä
-int aloitaRotta();
+int aloitaRotta(int tpid); //tpid tarkoittaa thread or process id. Tätä muuttujaa käytetään myöhemmin identifioimaan mikä thread tai process kirjoittaa sen hetken rottansa paikka
 
 //OPISKELIJA: lisää tarvittavat muut funktioesittelyt tähän niin koodin järjestykellä tiedostossa ei ole merkitystä
 
@@ -424,7 +426,7 @@ LiikkumisSuunta doRistaus(Sijainti risteyssijainti, LiikkumisSuunta prevDir, aut
 //parametrina tässä siis voi/pitää antaa esimerkiksi että ollaanko prosessina vai threadinä liikkeellä
 //kuljeta parametria/parametreja tarvittavissa paikoissa ohjelmassa
 //ohjelman lopussa reitti vektorissa (käsitellään pinona) on oikean reitin risteykset ainoastaan
-int aloitaRotta(){
+int aloitaRotta(int tpid){
     int liikkuCount=0;
     vector<Ristaus> reitti; //pinona käytettävä rotan kulkema reitti (pinossa kuljetut risteykset)
     Sijainti rotanSijainti = findBegin(); //hae labyrintin alku
@@ -437,6 +439,9 @@ int aloitaRotta(){
 //        cout << "Olen prosessi: " << prosessi << endl;
         //alla vaihtoehtoisesti n-kertainen for-loop testauksia varten
         //    for (int i = 0 ; i < 50 ; i++){
+        pthread_mutex_lock(&mutex); //lukitaan resurssi, että vain yksi thread voi käyttää sitä samaan aikaan
+        cout<<"rotan "<<tpid<<" x,y koordinaatit: "<<rotanSijainti.ykoord<<","<<rotanSijainti.xkoord<<"\n"; //printataan x ja y koordinaatit sen hetkisen threadin rotalle
+        pthread_mutex_unlock(&mutex); //vapautetaan resurssi
         //risteykset on labyrinttiin merkitty 2:lla ohjelmoinnin helpottamiseksi
         //risteyksen tutkimiselle on oma koodi alla
         if (labyrintti[KORKEUS-1-rotanSijainti.ykoord][rotanSijainti.xkoord] == 2){
@@ -512,8 +517,8 @@ int aloitaRotta(){
 void* worker(void* arg) {
     int id = *((int*)arg);
     cout << "Rotta " << id << " matkaan" << endl;
-    sleep(3);
-    aloitaRotta();
+    sleep(1);
+    aloitaRotta(id);
     cout<<"rotta "<<id<<" ulkona labyrintista"<<"\n";
     cout<<"\n";
     sleep(1+id%2); // luodaan eri ajoituksia 
@@ -557,7 +562,7 @@ int main(){
                 int* childPtr {nullptr};
                 sleep(2);
                 childPtr = (int*) shmat (segment_id, NULL, 0); //pointer jolla osoitetaan muistiin lapsessa
-                aloitaRotta();   
+                aloitaRotta(i);   
                 if (childPtr) {
                     sem_wait(sem); //jos semafori vapaa - voit edetä, muuten odota vapautumista
                     *childPtr += 1; //turavalista päivittää
