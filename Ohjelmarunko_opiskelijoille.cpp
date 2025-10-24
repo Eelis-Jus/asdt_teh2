@@ -451,11 +451,11 @@ int aloitaRotta(int tpid, int mod){
 
         if(mod==2){
             pthread_mutex_lock(&mutex); //lukitaan resurssi, että vain yksi thread voi käyttää sitä samaan aikaan
-            cout<<"säie: rotan "<<tpid<<" x,y koordinaatit: "<<rotanSijainti.ykoord<<","<<rotanSijainti.xkoord<<"\n"; //printataan x ja y koordinaatit sen hetkisen threadin rotalle
+            cout<<"säie: rotan "<<tpid<<" x,y koordinaatit: "<<rotanSijainti.xkoord<<","<<rotanSijainti.ykoord<<"\n"; //printataan x ja y koordinaatit sen hetkisen threadin rotalle
             pthread_mutex_unlock(&mutex); //vapautetaan resurssi
         }else if(mod==1){
            // sem_wait(name);
-            cout<<"prosessi: rotan "<<tpid<<" x,y koordinaatit: "<<rotanSijainti.ykoord<<","<<rotanSijainti.xkoord<<"\n";
+            cout<<"prosessi: rotan "<<tpid<<" x,y koordinaatit: "<<rotanSijainti.xkoord<<","<<rotanSijainti.ykoord<<"\n";
            // sem_post(name);
         }else{
             cout<<"tätä ei pitäisi tapahtua, jostain syystä ajaa rottaa ilman että spesifioitu onko säikeitä vai prosesseja ajossa"<<"\n";
