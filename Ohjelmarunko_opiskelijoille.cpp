@@ -435,7 +435,7 @@ LiikkumisSuunta doRistaus(Sijainti risteyssijainti, LiikkumisSuunta prevDir, aut
 //parametrina tässä siis voi/pitää antaa esimerkiksi että ollaanko prosessina vai threadinä liikkeellä
 //kuljeta parametria/parametreja tarvittavissa paikoissa ohjelmassa
 //ohjelman lopussa reitti vektorissa (käsitellään pinona) on oikean reitin risteykset ainoastaan
-int aloitaRotta(int tpid, int mod){
+int aloitaRotta(int tpid, int mod, sem_t* name){
     int liikkuCount=0;
     vector<Ristaus> reitti; //pinona käytettävä rotan kulkema reitti (pinossa kuljetut risteykset)
     Sijainti rotanSijainti = findBegin(); //hae labyrintin alku
@@ -454,9 +454,9 @@ int aloitaRotta(int tpid, int mod){
             cout<<"säie: rotan "<<tpid<<" x,y koordinaatit: "<<rotanSijainti.xkoord<<","<<rotanSijainti.ykoord<<"\n"; //printataan x ja y koordinaatit sen hetkisen threadin rotalle
             pthread_mutex_unlock(&mutex); //vapautetaan resurssi
         }else if(mod==1){
-           // sem_wait(name);
+            sem_wait(name);//käytetään semaphoria synkroinoimaan pääsyä tähän tilanteen kirjoitukseen.
             cout<<"prosessi: rotan "<<tpid<<" x,y koordinaatit: "<<rotanSijainti.xkoord<<","<<rotanSijainti.ykoord<<"\n";
-           // sem_post(name);
+            sem_post(name);//Tässä käytetään kuitenkin semaphoria tilanteen synkronointiin, mutta ei kirjoiteta mitään jaettuun muistiin
         }else{
             cout<<"tätä ei pitäisi tapahtua, jostain syystä ajaa rottaa ilman että spesifioitu onko säikeitä vai prosesseja ajossa"<<"\n";
         }
@@ -537,7 +537,8 @@ void* worker(void* arg) {
     
     cout << "Rotta " << id << " matkaan" << endl;
     sleep(1);
-    aloitaRotta(id,2); //nakataan modeksi 2, koska tätä funktiota käytetään vain säikeiden kanssa
+    sem_t* sema;
+    aloitaRotta(id,2,sema); //nakataan modeksi 2, koska tätä funktiota käytetään vain säikeiden kanssa
     cout<<"rotta "<<id<<" ulkona labyrintista"<<"\n";
     cout<<"\n";
     sleep(1+id%2); // luodaan eri ajoituksia 
@@ -578,7 +579,7 @@ int main(){
                 sleep(2);
                 childPtr = (int*) shmat (segment_id, NULL, 0); //pointer jolla osoitetaan muistiin lapsessa
                 
-                aloitaRotta(i,1);   
+                aloitaRotta(i,1,sem);   
                 if (childPtr) {
                     sem_wait(sem); //jos semafori vapaa - voit edetä, muuten odota vapautumista
                     *childPtr += 1; //turavalista päivittää
