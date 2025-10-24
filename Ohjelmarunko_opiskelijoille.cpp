@@ -39,6 +39,7 @@ using namespace std;
 //definet voi jättää globaalille alueelle, ne on sitten tiedossa koko tiedostossa
 #define KORKEUS 100 //rivien määrä alla
 #define LEVEYS 100 //sarakkaiden määrä alla
+
 int labyrintti[KORKEUS][LEVEYS] = {
     {1,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
     {1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,2,0,2,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,2,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,2,0,0,1,0,0,0,1,0,0,2,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,1,1},
@@ -142,6 +143,15 @@ int labyrintti[KORKEUS][LEVEYS] = {
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4,1,1},
 };
 
+sem_t semaphore;
+//kaikkialla tarvittavat tunnisteet globaalilla alueella
+const char* SEM_NAME = "/mySem";
+int segment_id;
+const int size_1 = 1024; // varataan kilotavu jaettua muistia
+pthread_barrier_t barrier;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; //en luo erillistä read ja write mutexia koska ei ole tarve
+//en myöskään luo tuossa mainissa pthread_atttribute_init erikseen tai muuta vastaavaa, koska on vain yhdenlaisia säikeitä ja sille ei siksi ole tarvetta  
+//myöhemmissä tehtävissä voin alustaa attribuutiot, asettaa prioriteetit ja muun vastaavan jos sille on niissä tehtävissä tarve
 
 //apuja: voit testata ratkaisujasi myös alla olevalla yksinkertaisemmalla labyrintilla 
 //#define KORKEUS 7
@@ -210,8 +220,8 @@ struct Karttavirhe {
 //tämä on esittely aloitusalgoritmifunktiolle mitä siis kutsutaan oli kyseessä prosessi eli säietoteutus
 //tällä hetkellä palauttaa kyseisen rotan liikkujen määrän labyrintin selvittämiseksi
 //OPISKELIJA: yhtenä mielenkiintoisena haasteena voisi olla liikkujen määrän optimointi rottien yhteistyötä kehittämällä
-int aloitaRotta();
-
+int aloitaRotta(int tpid, int mod); //tpid tarkoittaa thread or process id. Tätä muuttujaa käytetään myöhemmin identifioimaan mikä thread tai process kirjoittaa sen hetken rottansa paikka
+//mode tarkoittaa ajetaanko säikeitä vai prosesseja
 //OPISKELIJA: lisää tarvittavat muut funktioesittelyt tähän niin koodin järjestykellä tiedostossa ei ole merkitystä
 
 
@@ -425,7 +435,7 @@ LiikkumisSuunta doRistaus(Sijainti risteyssijainti, LiikkumisSuunta prevDir, aut
 //parametrina tässä siis voi/pitää antaa esimerkiksi että ollaanko prosessina vai threadinä liikkeellä
 //kuljeta parametria/parametreja tarvittavissa paikoissa ohjelmassa
 //ohjelman lopussa reitti vektorissa (käsitellään pinona) on oikean reitin risteykset ainoastaan
-int aloitaRotta(){
+int aloitaRotta(int tpid, int mod, sem_t* name){
     int liikkuCount=0;
     vector<Ristaus> reitti; //pinona käytettävä rotan kulkema reitti (pinossa kuljetut risteykset)
     Sijainti rotanSijainti = findBegin(); //hae labyrintin alku
@@ -438,6 +448,18 @@ int aloitaRotta(){
 //        cout << "Olen prosessi: " << prosessi << endl;
         //alla vaihtoehtoisesti n-kertainen for-loop testauksia varten
         //    for (int i = 0 ; i < 50 ; i++){
+
+        if(mod==2){
+            pthread_mutex_lock(&mutex); //lukitaan resurssi, että vain yksi thread voi käyttää sitä samaan aikaan
+            cout<<"säie: rotan "<<tpid<<" x,y koordinaatit: "<<rotanSijainti.xkoord<<","<<rotanSijainti.ykoord<<"\n"; //printataan x ja y koordinaatit sen hetkisen threadin rotalle
+            pthread_mutex_unlock(&mutex); //vapautetaan resurssi
+        }else if(mod==1){
+            sem_wait(name);//käytetään semaphoria synkroinoimaan pääsyä tähän tilanteen kirjoitukseen.
+            cout<<"prosessi: rotan "<<tpid<<" x,y koordinaatit: "<<rotanSijainti.xkoord<<","<<rotanSijainti.ykoord<<"\n";
+            sem_post(name);//Tässä käytetään kuitenkin semaphoria tilanteen synkronointiin, mutta ei kirjoiteta mitään jaettuun muistiin
+        }else{
+            cout<<"tätä ei pitäisi tapahtua, jostain syystä ajaa rottaa ilman että spesifioitu onko säikeitä vai prosesseja ajossa"<<"\n";
+        }
         //risteykset on labyrinttiin merkitty 2:lla ohjelmoinnin helpottamiseksi
         //risteyksen tutkimiselle on oma koodi alla
         if (labyrintti[KORKEUS-1-rotanSijainti.ykoord][rotanSijainti.xkoord] == 2){
@@ -510,11 +532,90 @@ int aloitaRotta(){
     return liikkuCount;
 }
 
+void* worker(void* arg) {
+    int id = *((int*)arg);
+    
+    cout << "Rotta " << id << " matkaan" << endl;
+    sleep(1);
+    sem_t* sema;
+    aloitaRotta(id,2,sema); //nakataan modeksi 2, koska tätä funktiota käytetään vain säikeiden kanssa
+    cout<<"rotta "<<id<<" ulkona labyrintista"<<"\n";
+    cout<<"\n";
+    sleep(1+id%2); // luodaan eri ajoituksia 
+    //jätin nuo alemmat koodinpätkät, että olisi helpompaa seurata ohjelman toteutusta
+    cout << "Thread " << id << " Odotetaan muita.." << endl; 
+    pthread_barrier_wait(&barrier);
+    cout << "Thread " << id << " Kaikki paikalla" << endl;
+    return nullptr;
+}
+
+
 //OPISKELIJA: nykyinen main on näin yksinkertainen, tästä pitää muokata se rinnakkaisuuden pohja
 int main(){
-    aloitaRotta();
-    //tämän tulee kertoa että kaikki rotat ovat päässeet ulos labyrintista
-    //viimeinen jäädytetty kuva sijaintikartasta olisi hyvä olla todistamassa sitä
-    std::cout << "Kaikki rotat ulkona!" << endl;
+    int mode; int rottienmaara;
+    cout<<"Ajetaanko prosesseja(1) vai säikeitä(2)? Paina haluttua numeroa."<<"\n";
+    cout<<": ";
+    cin>>mode;
+    cout<<"monatko rottaa laitetaan labyrinttiin? "<<"\n";
+    cout<<": ";
+    cin>>rottienmaara;
+    
+    if(mode==1){
+        segment_id = shmget(IPC_PRIVATE, size_1, S_IRUSR | S_IWUSR);
+        //luodaaan jaettu muisti parentissa:
+        int* memoryPointer {nullptr}; // pointer jolla osoitetaan muistiin parentissa
+        memoryPointer = (int*) shmat (segment_id, NULL, 0); // annetaan jaettu muisti parentin käyttöön kiinnittämällä pointteri
+        int lukuParent = 0;
+        if (memoryPointer) *memoryPointer = lukuParent;  
+        // luodaan semafori käyttöä varten yleisellä alueella (parentissa)
+        sem_unlink(SEM_NAME);
+        sem_t* sem = sem_open(SEM_NAME, O_CREAT | O_EXCL, 0666, 1);
+        if (sem == SEM_FAILED) { perror("sem_open"); return 1; }
+        for(int i=1; i<=rottienmaara; i++){
+            pid_t pid = fork();
+            if(pid == -1){perror("fork"); return 1; }
+            if(pid==0){
+                int* childPtr {nullptr};
+                sleep(2);
+                childPtr = (int*) shmat (segment_id, NULL, 0); //pointer jolla osoitetaan muistiin lapsessa
+                
+                aloitaRotta(i,1,sem);   
+                if (childPtr) {
+                    sem_wait(sem); //jos semafori vapaa - voit edetä, muuten odota vapautumista
+                    *childPtr += 1; //turavalista päivittää
+                    sem_post(sem); //signaloi että semafori vapaa
+                    cout << "Lapsi: " << *childPtr <<". rotta ulkona"<<endl; //käytetään countteria laskemaan montako rottaa läpi labyrintistä
+                    cout<<"\n";
+                }
+            return 0;        
+            }
+        }
+        for (int i = 0; i < rottienmaara; i++) wait(nullptr);
+        cout << *memoryPointer<<" rottaa ulkona"<<endl;
+        sem_close(sem);
+        sem_unlink(SEM_NAME);
+        // Otetaan jaettu muisti pois jaosta
+        shmdt(memoryPointer);
+        // Poistetaan jaettu muisti
+        shmctl(segment_id, IPC_RMID, nullptr);  
+
+    }else if(mode==2){
+        pthread_barrier_init(&barrier, nullptr, rottienmaara);
+        pthread_t threads[rottienmaara]; // tehdään id taulukko threadeille
+        int ids[rottienmaara];
+        for (int i = 0; i < rottienmaara; i++) {
+            ids[i] = i;
+            pthread_create(&threads[i], nullptr, worker, &ids[i]);
+        }
+        //odotetaan että kaikki säikeet valmiit
+        for (int i = 0; i < rottienmaara; i++) pthread_join(threads[i], nullptr);
+        pthread_barrier_destroy(&barrier);
+        pthread_mutex_destroy(&mutex); 
+
+    }else{
+        cout<<"epäsopiva input, ohjelma sulkeutuu";
+    }
+    
+    cout << "Kaikki rotat ulkona!" << endl;
     return 0;
 }
