@@ -2,6 +2,7 @@
 Tein eri tehtäville eri branchit ja mergesin uusimman branchin mainiin. Jos haluat nähdä miten ohjelma kehittyi tutki eri brancheja. Aluksi puskin teh1, sitten teh2, sitten teh4 ja lopuksi teh3.  
 
 Tehtävien erittelyt:
+
   teh1:
 Luon tehtävässä useita prosesseja ja käytän jaettua muistia, millä aina ilmoitan monesko rotta on ulkona labyrintistä(Luodaan useita prosesseja ja käytetään jaettua muistia johon kirjoitetaan kun rotta on ulos labyrintistä) (tähtäimessä 2p, koska jaettua muistia ja monta prosessia)
   
