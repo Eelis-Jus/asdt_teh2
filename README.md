@@ -1,4 +1,6 @@
 # asdt_teh2
+|Arvioi tämä mainin versio tähän 1.periodin lopun arviointiin!|
+
 Tein eri tehtäville eri branchit ja mergesin uusimman branchin mainiin. Jos haluat nähdä miten ohjelma kehittyi tutki eri brancheja. Aluksi puskin teh1, sitten teh2, sitten teh4 ja lopuksi teh3.  
 
 Tehtävien erittelyt:
@@ -15,4 +17,5 @@ Prosessit toteuttavat kartan kirjoittamalla aloitarotta() funktiossa kunkin rota
   teh4:
 Säikeet toteuttavat kartan kirjoittamalla/cout<< rottansa paikan labyrintissä aloitarotta() funktiossa. Säikeiden välinen eksklusiivisuus toteutetaan mutexilla. Ohjelma toteuttaa halutun säikeiden välisen ekslusiivisuuden ja ylläpitää tilannekuvaa/karttaa missä paikoissa labyrinttiä rotat liikkuu. (tähtäimessä 2p, koska toteutettu säikeiden välinen eksklusiivisuus ja ylläpidetään ajankohtaista tilannekuvaa/karttaa, missä rotat on)     
   
+|Jatkan näiden tehtävien tekoa 2. periodissa ja teen niille omat branchit ja mergetän ne sitten mainiin tuossa 2. periodin lopussa.|
 
